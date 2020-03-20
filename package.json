@@ -1,0 +1,14 @@
+{
+  "name": "mobiles-arztzimmer",
+  "version": "1.0.0",
+  "author": "David Herrmann <davherrmann@googlemail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@now/node": "^1.4.1",
+    "telegraf": "^3.36.0"
+  },
+  "prettier": {
+    "semi": false,
+    "trailingComma": "all"
+  }
+}
