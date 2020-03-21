@@ -4,7 +4,7 @@ import session from "telegraf/session"
 
 enum State {
   NutzerUnbekannt,
-  NutzerIstPatient,
+  HatNutzerAlleVierCoronaSymptome,
   NutzerIstArzt,
   NutzerHatAlleVierCoronaSymptome,
   NutzerHatNichtAlleVierCoronaSymptome,
@@ -23,40 +23,50 @@ bot.use(async (ctx, next: any) => {
   await next()
 })
 
-bot.on("callback_query", async ctx => {
-  const { reply, answerCbQuery, session } = ctx as ContextWithSession
+// Prüfungen des Zustandes & Übergang
+const hatNutzerAlleVierCoronaSymptome = (ctx: ContextWithSession) =>
+  ctx.session.state === State.HatNutzerAlleVierCoronaSymptome &&
+  ctx.callbackQuery?.data === "ja"
+
+// Aktionen
+const frageNutzerNachWeiterenRisikoMerkmalen = async (
+  ctx: ContextWithSession,
+) => {
+  await ctx.reply("Was trifft auf Dich zu?", {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "Ich habe Atemnot/Lungenprobleme.",
+            callback_data: "atemnot",
+          },
+        ],
+        [
+          {
+            text: "Ich war in einem Risikogebiet.",
+            callback_data: "risikogebiet",
+          },
+        ],
+        [
+          {
+            text: "Ich hatte Kontakt mit Erkrankten.",
+            callback_data: "kontakt",
+          },
+        ],
+        [{ text: "Nichts von alledem.", callback_data: "nichts" }],
+      ],
+    },
+  })
+}
+
+bot.on("callback_query", async ctxWithoutSession => {
+  const ctx = ctxWithoutSession as ContextWithSession
+  const { reply, answerCbQuery, session } = ctx
   answerCbQuery()
 
-  if (
-    session.state === State.NutzerIstPatient &&
-    ctx.callbackQuery?.data === "ja"
-  ) {
+  if (hatNutzerAlleVierCoronaSymptome(ctx)) {
     session.state = State.NutzerHatAlleVierCoronaSymptome
-    await reply("Was trifft auf Dich zu?", {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "Ich habe Atemnot/Lungenprobleme.",
-              callback_data: "atemnot",
-            },
-          ],
-          [
-            {
-              text: "Ich war in einem Risikogebiet.",
-              callback_data: "risikogebiet",
-            },
-          ],
-          [
-            {
-              text: "Ich hatte Kontakt mit Erkrankten.",
-              callback_data: "kontakt",
-            },
-          ],
-          [{ text: "Nichts von alledem.", callback_data: "nichts" }],
-        ],
-      },
-    })
+    frageNutzerNachWeiterenRisikoMerkmalen(ctx)
     return
   }
 
@@ -97,7 +107,7 @@ bot.on("callback_query", async ctx => {
   }
 
   if (
-    session.state === State.NutzerIstPatient &&
+    session.state === State.HatNutzerAlleVierCoronaSymptome &&
     ctx.callbackQuery?.data === "nein"
   ) {
     session.state = State.NutzerHatNichtAlleVierCoronaSymptome
@@ -127,7 +137,7 @@ bot.on("message", async ctx => {
     // session.state === State.NutzerUnbekannt &&
     text?.startsWith("/ichbinpatient")
   ) {
-    session.state = State.NutzerIstPatient
+    session.state = State.HatNutzerAlleVierCoronaSymptome
     await reply("Hast Du alle vier Corona-Symptome?", {
       reply_markup: {
         inline_keyboard: [
