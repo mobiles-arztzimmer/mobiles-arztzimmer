@@ -2,12 +2,22 @@ import Telegraf, { Telegram, ContextMessageUpdate } from "telegraf"
 import { NowRequest, NowResponse } from "@now/node"
 import session from "telegraf/session"
 
+enum State {
+  NutzerUnbekannt,
+  NutzerIstPatient,
+  NutzerIstArzt,
+  NutzerHatAlleVierCoronaSymptome,
+  NutzerHatNichtAlleVierCoronaSymptome,
+  HilftErholungUndTrinken,
+  NutzerWurdeGeholfen,
+  KontaktAufnehmen,
+}
+
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || "")
 
 bot.use(session())
 
 bot.use(async (ctx, next: any) => {
-  console.log(ctx)
   console.log(ctx.updateType)
   console.log(ctx.callbackQuery?.data)
   await next()
@@ -22,10 +32,68 @@ bot.on("callback_query", async ctx => {
     ctx.callbackQuery?.data === "ja"
   ) {
     session.state = State.NutzerHatAlleVierCoronaSymptome
-    await reply(
-      "Oh, dann werden wir Dir noch weitere Fragen stellen. Bis bald. 👋🏻",
-    )
+    await reply("Was trifft auf Dich zu?", {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "Ich habe Atemnot/Lungenprobleme.",
+              callback_data: "atemnot",
+            },
+          ],
+          [
+            {
+              text: "Ich war in einem Risikogebiet.",
+              callback_data: "risikogebiet",
+            },
+          ],
+          [
+            {
+              text: "Ich hatte Kontakt mit Erkrankten.",
+              callback_data: "kontakt",
+            },
+          ],
+          [{ text: "Nichts von alledem.", callback_data: "nichts" }],
+        ],
+      },
+    })
     return
+  }
+
+  if (
+    session.state === State.NutzerHatAlleVierCoronaSymptome &&
+    ctx.callbackQuery?.data === "nichts"
+  ) {
+    session.state = State.HilftErholungUndTrinken
+    await reply("Hilft Erholung und viel Trinken?", {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "Ja", callback_data: "ja" },
+            { text: "Nein", callback_data: "nein" },
+          ],
+        ],
+      },
+    })
+    return
+  }
+
+  if (
+    session.state === State.HilftErholungUndTrinken &&
+    ctx.callbackQuery?.data === "ja"
+  ) {
+    session.state = State.NutzerWurdeGeholfen
+    await reply("Kein Grund zur Sorge. 🎉")
+  }
+
+  if (
+    (session.state === State.HilftErholungUndTrinken &&
+      ctx.callbackQuery?.data === "nein") ||
+    (session.state === State.NutzerHatAlleVierCoronaSymptome &&
+      ctx.callbackQuery?.data !== "nichts")
+  ) {
+    session.state = State.KontaktAufnehmen
+    await reply("Bitte nehmen Sie Kontakt auf. 🆘")
   }
 
   if (
@@ -39,14 +107,6 @@ bot.on("callback_query", async ctx => {
     return
   }
 })
-
-enum State {
-  NutzerUnbekannt,
-  NutzerIstPatient,
-  NutzerIstArzt,
-  NutzerHatAlleVierCoronaSymptome,
-  NutzerHatNichtAlleVierCoronaSymptome,
-}
 
 interface Session {
   state: State
