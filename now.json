@@ -2,6 +2,7 @@
   "version": 2,
   "alias": "mobiles-arztzimmer",
   "env": {
+    "MONGODB_URL": "@mongodb-url",
     "TELEGRAM_BOT_TOKEN": "@telegram-bot-token",
     "TELEGRAM_SECRET_URL": "@telegram-secret-url"
   }
