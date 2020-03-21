@@ -3,12 +3,25 @@
   "version": "1.0.0",
   "author": "David Herrmann <davherrmann@googlemail.com>",
   "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
   "dependencies": {
     "@now/node": "^1.4.1",
+    "next": "^9.3.1",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
     "telegraf": "^3.36.0"
   },
   "prettier": {
     "semi": false,
     "trailingComma": "all"
+  },
+  "devDependencies": {
+    "@types/node": "^13.9.2",
+    "@types/react": "^16.9.25",
+    "typescript": "^3.8.3"
   }
 }
