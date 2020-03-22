@@ -152,7 +152,7 @@ const queryCallback = async (ctxWithoutSession: Context): Promise<Message> => {
       "⚠️ Du wirst als Kontaktperson Kategorie I höheres Infektionsrisiko eingestuft.",
     )
     ;(ctx as any).webhookReply = true
-    await sleep(1500)
+    await sleep(300)
     return await stelleJaNeinFrage(
       ctx,
       "Hast du bereits mit dem Gesundheitsamt Kontakt aufgenommen, oder hat dich das Gesundheitsamt kontaktiert? ",
@@ -236,7 +236,7 @@ const messageCallback = async (
     await reply(
       "Guten Tag! Du möchtest wissen ob du dich mit dem Sars-CoV-2 Virus infiziert hast? Dann beantworte bitte folgende Fragen. Sollte sich ein Verdacht ergeben, können wir dir medizinische Hilfe anbieten",
     )
-    await sleep(1000)
+    await sleep(200)
     ;(ctx as any).webhookReply = true
     session.state = State.HatPatientSymptome
     return await stelleJaNeinFrage(
