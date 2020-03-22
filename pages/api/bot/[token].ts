@@ -201,51 +201,50 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-bot.on("message", async ctxWithoutSession => {
-  const ctx = ctxWithoutSession as ContextWithSession
-  const { reply, message, session } = ctx
-  const text = message?.text
-  session.state = session.state || State.NutzerUnbekannt
+bot.on(
+  "message",
+  async (ctxWithoutSession): Promise<Message> => {
+    const ctx = ctxWithoutSession as ContextWithSession
+    const { reply, message, session } = ctx
+    const text = message?.text
+    session.state = session.state || State.NutzerUnbekannt
 
-  if (text?.startsWith("/ichbinpatient")) {
-    // TODO in Methode auslagern
-    ;(ctx as any).webhookReply = false
-    await reply(
-      "Guten Tag! Du möchtest wissen ob du dich mit dem Sars-CoV-2 Virus infiziert hast? Dann beantworte bitte folgende Fragen. Sollte sich ein Verdacht ergeben, können wir dir medizinische Hilfe anbieten",
-    )
-    await sleep(1000)
-    ;(ctx as any).webhookReply = true
-    session.state = State.HatPatientSymptome
-    await stelleJaNeinFrage(
-      ctx,
-      "Hast du Symptome wie Fieber 🌡 oder Husten 😷?",
-    )
-    return
-  }
+    if (text?.startsWith("/ichbinpatient")) {
+      // TODO in Methode auslagern
+      ;(ctx as any).webhookReply = false
+      await reply(
+        "Guten Tag! Du möchtest wissen ob du dich mit dem Sars-CoV-2 Virus infiziert hast? Dann beantworte bitte folgende Fragen. Sollte sich ein Verdacht ergeben, können wir dir medizinische Hilfe anbieten",
+      )
+      await sleep(1000)
+      ;(ctx as any).webhookReply = true
+      session.state = State.HatPatientSymptome
+      return await stelleJaNeinFrage(
+        ctx,
+        "Hast du Symptome wie Fieber 🌡 oder Husten 😷?",
+      )
+    }
 
-  if (session.state === State.NutzerSendetKontakt) {
-    session.state = State.NutzerSendetStandort
-    await reply(
-      "Vielen Dank! Als nächstes benötigen wir deine Adresse 🏠, bitte übermittle uns deinen Standort (Tippe auf 📎 und wähle Standort aus. Oder teile uns deinen vollständigen Adresse im Text mit).",
-    )
-    return
-  }
+    if (session.state === State.NutzerSendetKontakt) {
+      session.state = State.NutzerSendetStandort
+      return await reply(
+        "Vielen Dank! Als nächstes benötigen wir deine Adresse 🏠, bitte übermittle uns deinen Standort (Tippe auf 📎 und wähle Standort aus. Oder teile uns deinen vollständigen Adresse im Text mit).",
+      )
+    }
 
-  if (session.state === State.NutzerSendetStandort) {
-    session.state = State.NutzerWartetAufTerminbestätigung
-    await reply(
-      "Vielen Dank! Wir haben deine Daten erfasst und ermitteln jetzt für dich eine medizinische Fachkraft 👨‍⚕️, um dich für den Test zu besuchen.",
-    )
-    return
-  }
+    if (session.state === State.NutzerSendetStandort) {
+      session.state = State.NutzerWartetAufTerminbestätigung
+      return await reply(
+        "Vielen Dank! Wir haben deine Daten erfasst und ermitteln jetzt für dich eine medizinische Fachkraft 👨‍⚕️, um dich für den Test zu besuchen.",
+      )
+    }
 
-  if (message?.text?.startsWith("/ichbinarzt")) {
-    await reply("Schön, dass Du unterstützen möchtest!")
-    return
-  }
+    if (message?.text?.startsWith("/ichbinarzt")) {
+      return await reply("Schön, dass Du unterstützen möchtest!")
+    }
 
-  await reply("Ich verstehe dich nicht 🤷")
-})
+    return await reply("Ich verstehe dich nicht 🤷")
+  },
+)
 
 export default async (req: NowRequest, res: NowResponse) => {
   const {
