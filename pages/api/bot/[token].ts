@@ -31,6 +31,18 @@ enum State {
   PatientStelltFrage,
   PatientBedanktSich,
   DemoAbgeschlossen,
+  FachkraftNenntHintergrund,
+  HatFachkraftKlinischeErfahrung,
+  FachkraftNenntMonateAnErfahrung,
+  FachkraftNenntArtDerErfahrungen,
+  KannFachkraftAbstricheDurchfuehren,
+  FachkraftNenntWeitereQualifikationen,
+  FachkraftNenntVorname,
+  FachkraftNenntNachname,
+  FachkraftNenntAlter,
+  FachkraftSendetStandort,
+  FachkraftNenntUmkreis,
+  HatFachkraftEigenesFahrzeug,
 }
 
 let telegraf: Telegraf<ContextMessageUpdate>
@@ -153,7 +165,7 @@ const queryCallback = async (ctxWithoutSession: Context): Promise<Message> => {
     session.state = State.NutzerSendetKontakt
     ;(ctx as any).webhookReply = false
     await reply(
-      "Ok, kein Problem! Wir übernehmen das für dich und veranlassen, dass ein mobiles Testteam(Doctor Icon/ oder ähnlich) zu dir kommt, um einen Covid-19 Test duchzuführen.",
+      "Ok, kein Problem! Wir übernehmen das für dich und veranlassen, dass ein mobiles Testteam 👩‍⚕️ zu dir kommt, um einen Covid-19 Test duchzuführen.",
     )
     ;(ctx as any).webhookReply = true
     return await reply(
@@ -173,6 +185,33 @@ const queryCallback = async (ctxWithoutSession: Context): Promise<Message> => {
     session.state = State.NutzerHatNichtAlleVierCoronaSymptome
     return await reply(
       "Super, dann kann ich Dir vielleicht ein anderes Mal weiterhelfen.",
+    )
+  }
+
+  // Fachkraft
+
+  if (entsprichtAntwort(ctx, State.HatFachkraftKlinischeErfahrung, "ja")) {
+    session.state = State.FachkraftNenntMonateAnErfahrung
+    return await reply("Wie viele Monate?")
+  }
+
+  if (entsprichtAntwort(ctx, State.KannFachkraftAbstricheDurchfuehren, "ja")) {
+    session.state = State.FachkraftNenntVorname
+    ;(ctx as any).webhookReply = false
+    await reply("Super, das klingt gut. Kommen wir zu den allgemeinen Daten.")
+    ;(ctx as any).webhookReply = true
+    return await reply("Bitte gib uns deinen Vornamen?")
+  }
+
+  if (entsprichtAntwort(ctx, State.HatFachkraftEigenesFahrzeug, "nein")) {
+    session.state = State.DemoAbgeschlossen
+    ;(ctx as any).webhookReply = false
+    await reply(
+      "Kein Problem, wir arbeiten mit vielen Partnern zusammen und können dir ein Fahrzeug zur Verfügung stellen.",
+    )
+    ;(ctx as any).webhookReply = true
+    return await reply(
+      "Vielen Dank für deine Angaben ❤️. Wir melden uns zeitnah bei dir telefonisch und besprechen alle weiteren Fragen (wie Einsatzzeiten, Einweisung, etc.)  und wie es los geht! Bei allen weiteren Fragen, schau gern in unser FAQ, oder frage uns hier im Chat.",
     )
   }
 
@@ -210,7 +249,7 @@ const messageCallback = async (
     session.username = (message?.text || "").split(" ")[0]
     session.state = State.NutzerSendetStandort
     return await reply(
-      "Vielen Dank! Als nächstes benötigen wir deine Adresse 🏠, bitte übermittle uns deinen Standort (Tippe auf 📎 und wähle Standort aus. Oder teile uns deinen vollständigen Adresse im Text mit).",
+      "Vielen Dank! Als nächstes benötigen wir deine Adresse 🏠, bitte übermittle uns deinen Standort (Tippe auf 📎 und wähle Standort aus. Oder teile uns deine vollständige Adresse als Text mit).",
     )
   }
 
@@ -224,7 +263,7 @@ const messageCallback = async (
     await reply(
       "⚠️ Dein persönlicher Testtermin 🗓 ist noch heute! Unsere Fahrerin Marion kommt heute gegen 16:30h zu dir. Marion wird sich vorher nochmal hier im Chat bei dir melden. Bitte halte dein Smartphone bereit 📲.",
     )
-    await reply("⚠️ Bitte bleiben Sie zu Hause!")
+    await reply("⚠️ Bitte bleib zu Hause!")
     ;(ctx as any).webhookReply = true
     return await reply(
       `Hallo ${session.username}, hier ist Marion, ich bin auf dem Weg zu dir und voraussichtlich 5 Minuten eher da. Wie kann ich dich am besten finden?`,
@@ -268,7 +307,7 @@ const messageCallback = async (
   if (session.state === State.PatientStelltFrage) {
     session.state = State.PatientBedanktSich
     return await reply(
-      "Bitte wenden dich in solchen Fällen direkt an einen Notarzt (112) 🆘",
+      "Bitte wende dich in solchen Fällen direkt an einen Notarzt (112) 🆘",
     )
   }
 
@@ -281,6 +320,70 @@ const messageCallback = async (
 
   if (message?.text?.startsWith("/ichbinarzt")) {
     return await reply("Schön, dass Du unterstützen möchtest!")
+  }
+
+  if (message?.text?.startsWith("/ichbinfachkraft")) {
+    session.state = State.FachkraftNenntHintergrund
+    ;(ctx as any).webhookReply = false
+    await reply(
+      "Guten Tag! Du bist eine medizinische Fachkraft und möchtest im Kampf gegen Sars-CoV-2 🦠 helfen?",
+    )
+    ;(ctx as any).webhookReply = true
+    return await reply(
+      "Bitte nenne uns zuerst deinen Hintergrund (Medizinstudent / Ausbildung als Rettungssanitäter oder Krankenschwester / Arzt / ...). Auch Ausbildungen, in denen Du aktuell nicht mehr tätig bist, sind wertvoll! Die Erfahrung zählt!",
+    )
+  }
+
+  if (session.state === State.FachkraftNenntHintergrund) {
+    session.state = State.HatFachkraftKlinischeErfahrung
+    return await stelleJaNeinFrage(ctx, "Hast du klinische Erfahrung?")
+  }
+
+  if (session.state === State.FachkraftNenntMonateAnErfahrung) {
+    session.state = State.FachkraftNenntArtDerErfahrungen
+    return await reply("Bitte beschreibe uns kurz etwas zu deinen Erfahrungen.")
+  }
+
+  if (session.state === State.FachkraftNenntArtDerErfahrungen) {
+    session.state = State.FachkraftNenntWeitereQualifikationen
+    return await reply("Weitere Qualifikationen?")
+  }
+
+  if (session.state === State.FachkraftNenntWeitereQualifikationen) {
+    session.state = State.KannFachkraftAbstricheDurchfuehren
+    return await stelleJaNeinFrage(
+      ctx,
+      "Traust du dir es zu, Abstriche auf Sars-CoV-2 Virus durchzuführen? (Eine Einweisung durch uns wird selbstverständlich erfolgen).",
+    )
+  }
+
+  if (session.state === State.FachkraftNenntVorname) {
+    session.state = State.FachkraftNenntNachname
+    return await reply("Dein Nachname?")
+  }
+
+  if (session.state === State.FachkraftNenntNachname) {
+    session.state = State.FachkraftNenntAlter
+    return await reply("Dein Alter?")
+  }
+
+  if (session.state === State.FachkraftNenntAlter) {
+    session.state = State.FachkraftSendetStandort
+    return await reply(
+      "Vielen Dank! Als nächstes benötigen wir deine Adresse 🏠, bitte übermittle uns deinen Standort (Tippe auf 📎 und wähle den Standort, von dem du deinen Einsatz beginnen möchtest).",
+    )
+  }
+
+  if (session.state === State.FachkraftSendetStandort) {
+    session.state = State.FachkraftNenntUmkreis
+    return await reply(
+      "In welchem Umkreis km möchtest du eingesetzt werden? 🎯",
+    )
+  }
+
+  if (session.state === State.FachkraftNenntUmkreis) {
+    session.state = State.HatFachkraftEigenesFahrzeug
+    return await stelleJaNeinFrage(ctx, "Hast du ein eigenes Fahrzeug? 🚗")
   }
 
   return await reply("Ich verstehe dich nicht 🤷")
