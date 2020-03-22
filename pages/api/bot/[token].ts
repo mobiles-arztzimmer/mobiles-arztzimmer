@@ -5,6 +5,7 @@ import { Message } from "telegraf/typings/telegram-types"
 
 interface Session {
   state: State
+  username: string
 }
 
 interface ContextWithSession extends ContextMessageUpdate {
@@ -25,7 +26,11 @@ enum State {
   HattePatientKontaktMitGesundheitsamt,
   NutzerSendetKontakt,
   NutzerSendetStandort,
-  NutzerWartetAufTerminbestätigung,
+  FachkraftHatKontaktAufgenommen,
+  FachkraftHatPatientGeantwortet,
+  PatientStelltFrage,
+  PatientBedanktSich,
+  DemoAbgeschlossen,
 }
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || "")
@@ -225,6 +230,7 @@ bot.on(
     }
 
     if (session.state === State.NutzerSendetKontakt) {
+      session.username = (message?.text || "").split(" ")[0]
       session.state = State.NutzerSendetStandort
       return await reply(
         "Vielen Dank! Als nächstes benötigen wir deine Adresse 🏠, bitte übermittle uns deinen Standort (Tippe auf 📎 und wähle Standort aus. Oder teile uns deinen vollständigen Adresse im Text mit).",
@@ -232,9 +238,67 @@ bot.on(
     }
 
     if (session.state === State.NutzerSendetStandort) {
-      session.state = State.NutzerWartetAufTerminbestätigung
-      return await reply(
+      session.state = State.FachkraftHatKontaktAufgenommen
+      ;(ctx as any).webhookReply = false
+      await reply(
         "Vielen Dank! Wir haben deine Daten erfasst und ermitteln jetzt für dich eine medizinische Fachkraft 👨‍⚕️, um dich für den Test zu besuchen.",
+      )
+      await sleep(800)
+      await reply(
+        "⚠️ Dein persönlicher Testtermin 🗓 ist noch heute! Unsere Fahrerin Marion kommt heute gegen 16:30h zu dir. Marion wird sich vorher nochmal hier im Chat bei dir melden. Bitte halte dein Smartphone bereit 📲.",
+      )
+      await reply("⚠️ Bitte bleiben Sie zu Hause!")
+      ;(ctx as any).webhookReply = true
+      return await reply(
+        `Hallo ${session.username}, hier ist Marion, ich bin auf dem Weg zu dir und voraussichtlich 5 Minuten eher da. Wie kann ich dich am besten finden?`,
+      )
+    }
+
+    if (session.state === State.FachkraftHatKontaktAufgenommen) {
+      session.state = State.FachkraftHatPatientGeantwortet
+      return await reply("Perfekt, vielen Dank. Dann bis gleich!")
+    }
+
+    if (session.state === State.FachkraftHatPatientGeantwortet) {
+      session.state = State.PatientStelltFrage
+      await sleep(1500)
+      ;(ctx as any).webhookReply = false
+      await reply(
+        "⚠️ Dein Test wurde ins Labor 🔬geschickt. Sobald wir das Ergebnis vorliegen haben, werden wir dich informieren!",
+      )
+      await reply(
+        "⚠️ Beschränke den Kontakt zu anderen Personen auf das Nötige. Versuche Abstand zu deinen Mitbewohnern zu halten, beispielsweise indem du dich in einem separaten Raum aufhältst und zu unterschiedlichen Zeiten isst.",
+      )
+      await reply(
+        "⚠️ Beobachte außerdem zwei Wochen lang deinen Gesundheitszustand: Messe zweimal täglich Fieber, führe ein Tagebuch, in dem du deine Temperaur, auftretende Symptome, deine Aktivitätund Kontakt zu anderen Personen notierst.",
+      )
+      await sleep(1000)
+      await reply(
+        `⚠️ Hallo ${session.username}, deine Ergebnisse sind da. Du wurdest positiv auf Covid-19 🦠getestet.`,
+      )
+      await reply(
+        "⚠️ Bitte bleibe in häuslicher Quarantäne und beachte die nachfolgende Hinweise und wende weiterhin alle Maßnahmen, wie beschrieben, an.",
+      )
+      await reply(
+        "http://multimedia.gsb.bund.de/RKI/Flowcharts/covid19-quarantaene/",
+      )
+      await reply("Wir wünschen dir eine gute Besserung. ❤️")
+      await sleep(700)
+      ;(ctx as any).webhookReply = true
+      return await reply("Hast du noch Fragen?")
+    }
+
+    if (session.state === State.PatientStelltFrage) {
+      session.state = State.PatientBedanktSich
+      return await reply(
+        "Bitte wenden dich in solchen Fällen direkt an einen Notarzt (112) 🆘",
+      )
+    }
+
+    if (session.state === State.PatientBedanktSich) {
+      session.state = State.DemoAbgeschlossen
+      return await reply(
+        "Wir danken dir, dass du dich hier gemeldet hast und wünschen dir baldige Genesung ❤️",
       )
     }
 
