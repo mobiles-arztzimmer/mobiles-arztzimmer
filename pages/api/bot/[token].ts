@@ -2,6 +2,14 @@ import Telegraf, { Telegram, ContextMessageUpdate } from "telegraf"
 import { NowRequest, NowResponse } from "@now/node"
 import session from "telegraf/session"
 
+interface Session {
+  state: State
+}
+
+interface ContextWithSession extends ContextMessageUpdate {
+  session: Session
+}
+
 enum State {
   NutzerUnbekannt,
   HatNutzerAlleVierCoronaSymptome,
@@ -14,7 +22,6 @@ enum State {
 }
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || "")
-
 bot.use(session())
 
 bot.use(async (ctx, next: any) => {
@@ -59,6 +66,30 @@ const frageNutzerNachWeiterenRisikoMerkmalen = async (
   })
 }
 
+const stelleJaNeinFrage = async (ctx: ContextWithSession, frage: string) =>
+  await ctx.reply(frage, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "Ja", callback_data: "ja" },
+          { text: "Nein", callback_data: "nein" },
+        ],
+      ],
+    },
+  })
+
+const entsprichtAntwort = (
+  ctx: ContextWithSession,
+  state: State,
+  data: string,
+) => ctx.session.state === state && ctx.callbackQuery?.data === data
+
+const entsprichtAntwortNicht = (
+  ctx: ContextWithSession,
+  state: State,
+  data: string,
+) => ctx.session.state === state && ctx.callbackQuery?.data !== data
+
 bot.on("callback_query", async ctxWithoutSession => {
   const ctx = ctxWithoutSession as ContextWithSession
   const { reply, answerCbQuery, session } = ctx
@@ -70,46 +101,26 @@ bot.on("callback_query", async ctxWithoutSession => {
     return
   }
 
-  if (
-    session.state === State.NutzerHatAlleVierCoronaSymptome &&
-    ctx.callbackQuery?.data === "nichts"
-  ) {
+  if (entsprichtAntwort(ctx, State.NutzerHatAlleVierCoronaSymptome, "nichts")) {
     session.state = State.HilftErholungUndTrinken
-    await reply("Hilft Erholung und viel Trinken?", {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "Ja", callback_data: "ja" },
-            { text: "Nein", callback_data: "nein" },
-          ],
-        ],
-      },
-    })
+    await stelleJaNeinFrage(ctx, "Hilft viel Trinken und Erholung?")
     return
   }
 
-  if (
-    session.state === State.HilftErholungUndTrinken &&
-    ctx.callbackQuery?.data === "ja"
-  ) {
+  if (entsprichtAntwort(ctx, State.HilftErholungUndTrinken, "ja")) {
     session.state = State.NutzerWurdeGeholfen
     await reply("Kein Grund zur Sorge. 🎉")
   }
 
   if (
-    (session.state === State.HilftErholungUndTrinken &&
-      ctx.callbackQuery?.data === "nein") ||
-    (session.state === State.NutzerHatAlleVierCoronaSymptome &&
-      ctx.callbackQuery?.data !== "nichts")
+    entsprichtAntwort(ctx, State.HilftErholungUndTrinken, "nein") ||
+    entsprichtAntwortNicht(ctx, State.NutzerHatAlleVierCoronaSymptome, "nichts")
   ) {
     session.state = State.KontaktAufnehmen
     await reply("Bitte nehmen Sie Kontakt auf. 🆘")
   }
 
-  if (
-    session.state === State.HatNutzerAlleVierCoronaSymptome &&
-    ctx.callbackQuery?.data === "nein"
-  ) {
+  if (entsprichtAntwort(ctx, State.HatNutzerAlleVierCoronaSymptome, "nein")) {
     session.state = State.NutzerHatNichtAlleVierCoronaSymptome
     await reply(
       "Super, dann kann ich Dir vielleicht ein anderes Mal weiterhelfen.",
@@ -118,36 +129,15 @@ bot.on("callback_query", async ctxWithoutSession => {
   }
 })
 
-interface Session {
-  state: State
-}
-
-interface ContextWithSession extends ContextMessageUpdate {
-  session: Session
-}
-
-bot.on("message", async ctx => {
-  const { reply, message, session } = ctx as ContextWithSession
+bot.on("message", async ctxWithoutSession => {
+  const ctx = ctxWithoutSession as ContextWithSession
+  const { reply, message, session } = ctx
   const text = message?.text
   session.state = session.state || State.NutzerUnbekannt
 
-  if (
-    // Von einem bestimmten State aus mit einer gewissen Übergangsbedingung
-    // (Command, kann aber auch leer sein) geht es mit einer Antwort in den nächsten State
-    // session.state === State.NutzerUnbekannt &&
-    text?.startsWith("/ichbinpatient")
-  ) {
+  if (text?.startsWith("/ichbinpatient")) {
     session.state = State.HatNutzerAlleVierCoronaSymptome
-    await reply("Hast Du alle vier Corona-Symptome?", {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "Ja", callback_data: "ja" },
-            { text: "Nein", callback_data: "nein" },
-          ],
-        ],
-      },
-    })
+    await stelleJaNeinFrage(ctx, "Hast Du alle vier Corona-Symptome?")
     return
   }
 
